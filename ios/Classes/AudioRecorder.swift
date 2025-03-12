@@ -7,27 +7,27 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
     var useLegacyNormalization: Bool = false
     var audioUrl: URL?
     var recordedDuration: CMTime = CMTime.zero
-    
+
     func startRecording(_ result: @escaping FlutterResult,_ recordingSettings: RecordingSettings){
         useLegacyNormalization = recordingSettings.useLegacy ?? false
-        
+
         var settings: [String: Any] = [
                 AVFormatIDKey: getEncoder(recordingSettings.encoder ?? 0),
                 AVSampleRateKey: recordingSettings.sampleRate ?? 44100,
                 AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
             ]
-        
+
         if (recordingSettings.bitRate != nil) {
             settings[AVEncoderBitRateKey] = recordingSettings.bitRate
         }
-        
+
         if ((recordingSettings.encoder ?? 0) == Constants.kAudioFormatLinearPCM) {
             settings[AVLinearPCMBitDepthKey] = recordingSettings.linearPCMBitDepth
             settings[AVLinearPCMIsBigEndianKey] = recordingSettings.linearPCMIsBigEndian
             settings[AVLinearPCMIsFloatKey] = recordingSettings.linearPCMIsFloat
         }
-        
+
         let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
         if (recordingSettings.path == nil) {
             let documentDirectory = getDocumentDirectory(result)
@@ -39,20 +39,20 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
         } else {
             self.path = recordingSettings.path
         }
-        
-        
+
+
         do {
             if recordingSettings.overrideAudioSession {
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options)
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options, mode: .voiceChat)
                 try AVAudioSession.sharedInstance().setActive(true)
             }
             audioUrl = URL(fileURLWithPath: self.path!)
-            
+
             if(audioUrl == nil){
                 result(FlutterError(code: Constants.audioWaveforms, message: "Failed to initialise file URL", details: nil))
             }
             audioRecorder = try AVAudioRecorder(url: audioUrl!, settings: settings as [String : Any])
-            
+
             audioRecorder?.delegate = self
             audioRecorder?.isMeteringEnabled = true
             audioRecorder?.record()
@@ -61,12 +61,12 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
             result(FlutterError(code: Constants.audioWaveforms, message: "Failed to start recording", details: error.localizedDescription))
         }
     }
-    
+
     public func stopRecording(_ result: @escaping FlutterResult) {
         audioRecorder?.stop()
         if(audioUrl != nil) {
             let asset = AVURLAsset(url:  audioUrl!)
-            
+
             if #available(iOS 15.0, *) {
                 Task {
                     do {
@@ -86,24 +86,24 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
         }
         audioRecorder = nil
     }
-    
+
     private func sendResult(_ result: @escaping FlutterResult, duration:Int){
         var params = [String:Any?]()
         params[Constants.resultFilePath] = path
         params[Constants.resultDuration] = duration
         result(params)
     }
-    
+
     public func pauseRecording(_ result: @escaping FlutterResult) {
         audioRecorder?.pause()
         result(false)
     }
-    
+
     public func resumeRecording(_ result: @escaping FlutterResult) {
         audioRecorder?.record()
         result(true)
     }
-    
+
     public func getDecibel(_ result: @escaping FlutterResult) {
         audioRecorder?.updateMeters()
         if(useLegacyNormalization){
@@ -115,10 +115,10 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
             result(linear)
         }
     }
-    
+
     public func checkHasPermission(_ result: @escaping FlutterResult){
         switch AVAudioSession.sharedInstance().recordPermission{
-            
+
         case .undetermined:
             AVAudioSession.sharedInstance().requestRecordPermission() { [unowned self] allowed in
                 DispatchQueue.main.async {
@@ -163,7 +163,7 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
             return Int(kAudioFormatMPEG4AAC)
         }
     }
-    
+
     private func getDocumentDirectory(_ result: @escaping FlutterResult) -> String {
         let directory = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         let ifExists = FileManager.default.fileExists(atPath: directory)
