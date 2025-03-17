@@ -43,7 +43,7 @@ public class AudioRecorder: NSObject, AVAudioRecorderDelegate{
 
         do {
             if recordingSettings.overrideAudioSession {
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, options: options, mode: .voiceChat)
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: options)
                 try AVAudioSession.sharedInstance().setActive(true)
             }
             audioUrl = URL(fileURLWithPath: self.path!)
